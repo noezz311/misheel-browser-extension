@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Мишээл · PDF уншигч</title>
   <link rel="icon" href="icons/32.png">
+  <link rel="stylesheet" href="vendor/pdfjs/pdf_viewer.css">
   <link rel="stylesheet" href="pdf.css">
   <script src="content.js" defer></script>
   <script src="pdf.mjs" type="module"></script>
@@ -44,7 +45,29 @@
   <div id="message" class="message" role="alert" hidden></div>
   <div id="no-text" class="no-text" role="status" hidden>Энэ хуудсанд сонгож болох текст алга. Зураг болгож сканнердсан PDF-ийн текстийг таних боломж одоогоор байхгүй.</div>
 
-  <main id="reader" class="reader" aria-label="PDF хуудас">
+  <section id="annotation-toolbar" class="annotation-toolbar" aria-label="PDF тэмдэглэгээ" hidden>
+    <div class="annotation-tools" role="group" aria-label="Хэрэгсэл">
+      <button id="tool-read" class="tool-button" type="button" aria-pressed="true" title="Текст сонгож орчуулах">↖ <span>Унших</span></button>
+      <button id="tool-highlight" class="tool-button" type="button" aria-pressed="false" title="Текст сонгож тодруулах">▰ <span>Тодруулах</span></button>
+      <button id="tool-ink" class="tool-button" type="button" aria-pressed="false" title="Хулгана эсвэл үзгээр зурах">✎ <span>Зурах</span></button>
+      <button id="tool-text" class="tool-button" type="button" aria-pressed="false" title="Хуудас дээр дарж текст нэмэх">T <span>Текст нэмэх</span></button>
+    </div>
+    <div id="annotation-options" class="annotation-options" hidden>
+      <label class="color-label" for="annotation-color">Өнгө <input id="annotation-color" type="color" value="#fff066" aria-label="Тэмдэглэгээний өнгө"></label>
+      <label id="pen-size-label" for="pen-size" hidden>Үзэг <select id="pen-size" aria-label="Үзгийн өргөн"><option value="1">1</option><option value="2" selected>2</option><option value="4">4</option><option value="8">8</option><option value="12">12</option></select></label>
+      <label id="text-size-label" for="text-size" hidden>Текст <select id="text-size" aria-label="Текстийн хэмжээ"><option value="12">12</option><option value="16" selected>16</option><option value="20">20</option><option value="24">24</option><option value="32">32</option><option value="48">48</option></select></label>
+    </div>
+    <div class="annotation-actions" role="group" aria-label="Тэмдэглэгээ удирдах">
+      <button id="annotation-undo" class="tool-button" type="button" disabled title="Буцаах (Ctrl+Z)" aria-label="Буцаах">↶</button>
+      <button id="annotation-redo" class="tool-button" type="button" disabled title="Дахин хийх (Ctrl+Y)" aria-label="Дахин хийх">↷</button>
+      <button id="annotation-delete" class="tool-button" type="button" disabled title="Сонгосон тэмдэглэгээг устгах (Delete)">Устгах</button>
+    </div>
+    <span id="save-status" class="save-status" role="status"></span>
+    <button id="save-pdf" class="primary" type="button" title="Тэмдэглэгээтэй PDF татах (Ctrl+S)">PDF хадгалах ↓</button>
+  </section>
+
+  <main class="reader-frame" aria-label="PDF хуудас">
+    <div id="reader" class="reader">
     <section id="empty-state" class="empty-state">
       <div class="paper-illustration" aria-hidden="true">
         <div class="paper-top"><span>PDF</span><i></i></div>
@@ -61,9 +84,10 @@
       <div class="privacy-note"><span aria-hidden="true">✓</span> Файл таны төхөөрөмж дээр нээгдэнэ. Серверт илгээхгүй.</div>
     </section>
     <div id="page-stage" class="page-stage" hidden>
-      <div id="page-shell" class="page-shell"></div>
+      <div id="page-shell" class="page-shell pdfViewer"></div>
     </div>
     <div id="busy" class="busy" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-label">PDF нээж байна…</span></div>
+    </div>
   </main>
 
   <footer class="reader-footer"><span id="reader-status" role="status">Текст сонгох боломжтой PDF дээр ажиллана</span><span class="keyboard-hint">← → хуудас солих</span><a href="help.html" target="_blank" rel="noopener">Заавар</a></footer>

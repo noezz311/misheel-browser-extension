@@ -39,7 +39,8 @@ a:hover { text-decoration: underline; }
 .fit-button[aria-pressed="true"] { color: #2d6845; border-color: #cbdcc6; background: #eaf2e7; }
 .toolbar-divider { height: 24px; width: 1px; background: var(--border); }
 .selection-hint { margin: 0 0 0 auto; font-size: 11px; color: var(--muted); text-align: right; }
-.reader { overflow: auto; flex: 1; min-height: 0; position: relative; overscroll-behavior: contain; scrollbar-color: #c2cfbe transparent; scrollbar-width: thin; }
+.reader-frame { position: relative; flex: 1; min-height: 0; }
+.reader { overflow: auto; position: absolute; inset: 0; overscroll-behavior: contain; scrollbar-color: #c2cfbe transparent; scrollbar-width: thin; }
 .empty-state { min-height: 100%; padding: 45px 28px 38px; display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: center; }
 .paper-illustration { background: #fff; border: 1px solid #dce7d6; width: 192px; height: 163px; border-radius: 12px; box-shadow: 0 12px 28px #4260390b; margin-bottom: 30px; position: relative; padding: 18px 20px; transform: rotate(-3deg); user-select: none; }
 .paper-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -57,10 +58,11 @@ h1 { font-size: clamp(24px, 3vw, 34px); line-height: 1.32; letter-spacing: -.8px
 .empty-state > p:not(.drop-hint) { color: #738171; font-size: 13px; line-height: 1.9; margin: 17px 0 23px; }
 .drop-hint { color: #8c9987; font-size: 11px; margin: 15px 0 0; }
 .privacy-note { border-top: 1px solid #dfe7db; color: #8a9884; font-size: 10px; margin-top: 31px; padding-top: 18px; }.privacy-note span { color: #65976e; padding-right: 5px; }
-.page-stage { min-width: 100%; width: max-content; min-height: 100%; padding: 30px 32px 38px; display: flex; justify-content: center; align-items: flex-start; }
-.page-shell { --scale-round-x: 1px; --scale-round-y: 1px; --total-scale-factor: 1; --scale-factor: 1; position: relative; flex: none; background: #fff; box-shadow: 0 3px 20px #34483016, 0 0 0 1px #233a2610; }
+.page-stage { min-width: 100%; width: max-content; min-height: 100%; padding: 24px 20px 30px; }
+.page-shell { --scale-factor: 1; --page-bg-color: #fff; --page-margin: 0 auto; --pdfViewer-padding-bottom: 0; position: relative; min-width: 100%; }
+.page-shell .page { color-scheme: only light; color: #111; box-shadow: 0 3px 20px #34483016, 0 0 0 1px #233a2610; }
 .page-shell canvas { display: block; }
-.page-shell[aria-busy="true"] { pointer-events: none; user-select: none; }
+.reader[aria-busy="true"] .page-shell, .reader.saving .page-shell { pointer-events: none; user-select: none; }
 .message, .no-text { flex: none; padding: 11px 30px; font-size: 12px; line-height: 1.55; }
 .message { background: #fbede7; color: #8e492d; border-bottom: 1px solid #ebd6ca; }
 .message.info { background: #edf4ea; color: #5d7954; border-color: #d5e5ce; }
@@ -75,18 +77,25 @@ h1 { font-size: clamp(24px, 3vw, 34px); line-height: 1.32; letter-spacing: -.8px
 .password-dialog { border: 1px solid var(--border); border-radius: 18px; padding: 28px; color: var(--ink); width: 360px; max-width: calc(100vw - 32px); box-shadow: 0 16px 70px #18332240; }.password-dialog::backdrop { background: #18302266; backdrop-filter: blur(3px); }.dialog-mark { font-size: 24px; }.password-dialog h2 { margin: 15px 0 10px; font-weight: 600; font-size: 20px; }.password-dialog p { color: var(--muted); font-size: 12px; line-height: 1.6; }.password-dialog label { display: block; font-size: 12px; margin: 22px 0 7px; }.password-dialog input { width: 100%; padding: 11px 12px; border: 1px solid #c8d8c1; border-radius: 9px; }.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 23px; }
 .visually-hidden { width: 1px; height: 1px; padding: 0; border: 0; position: absolute; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-/* Selectable TextLayer styling adapted from Mozilla PDF.js 5.6.205
- * web/pdf_viewer.css, Copyright Mozilla Foundation, Apache-2.0. */
-.textLayer { color-scheme: only light; position: absolute; text-align: initial; inset: 0; overflow: clip; opacity: 1; line-height: 1; text-size-adjust: none; -webkit-text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; caret-color: CanvasText; z-index: 1; --min-font-size: 1; --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size)); --min-font-size-inv: calc(1 / var(--min-font-size)); }
-.textLayer :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0 0; }
-.textLayer > :not(.markedContent), .textLayer .markedContent span:not(.markedContent) { z-index: 1; --font-height: 0; font-size: calc(var(--text-scale-factor) * var(--font-height)); --scale-x: 1; --rotate: 0deg; transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv)); }
-.textLayer .markedContent { display: contents; }
-.textLayer span[role="img"] { user-select: none; cursor: default; }
+.annotation-toolbar { display: flex; align-items: center; gap: 13px; padding: 8px 30px; background: var(--paper); border-bottom: 1px solid var(--border); flex: none; flex-wrap: wrap; }
+.annotation-tools, .annotation-options, .annotation-actions { display: flex; align-items: center; gap: 5px; }
+.tool-button { border: 1px solid transparent; border-radius: 7px; padding: 7px 9px; background: transparent; color: var(--ink); font-size: 12px; min-height: 34px; }
+.tool-button:hover:enabled { background: #e8efe5; }
+.tool-button[aria-pressed="true"] { color: #256846; border-color: #cbdcc6; background: #eaf2e7; }
+.annotation-options { gap: 12px; border-inline: 1px solid var(--border); padding-inline: 12px; }
+.annotation-options label { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.annotation-options input[type="color"] { width: 29px; height: 27px; padding: 2px; border: 1px solid var(--border); border-radius: 6px; background: var(--paper); cursor: pointer; }
+.annotation-options select { border: 1px solid var(--border); border-radius: 6px; padding: 4px; color: var(--ink); background: var(--paper); }
+.save-status { margin-left: auto; color: var(--muted); font-size: 10px; }
+#save-pdf { padding: 7px 12px; font-size: 12px; }
+.annotationEditorLayer { --editor-toolbar-bg-color: #f7faf5; --editor-toolbar-border-color: #d0dccb; --editor-toolbar-fg-color: #20352c; }
+.annotationEditorLayer .editToolbar { color: #20352c; }
+.annotationEditorLayer .editToolbar button { color: #20352c; }
+@media (max-width: 960px) { .annotation-toolbar { padding-inline: 22px; gap: 8px; }.save-status { display: none; }#save-pdf { margin-left: auto; } }
+@media (max-width: 640px) { .annotation-toolbar { padding: 7px 12px; gap: 5px; }.tool-button { padding-inline: 6px; font-size: 11px; }.annotation-options { padding-inline: 6px; gap: 6px; }.annotation-actions { margin-left: auto; } }
+@media (prefers-color-scheme: dark) { .tool-button:hover:enabled { background: #364c32; }.tool-button[aria-pressed="true"] { color: #b7d7ad; background: #32472d; border-color: #516d48; } }
+
 .textLayer ::selection { background: #408b5b4d; }
-.textLayer br::selection { background: transparent; }
-.textLayer[data-main-rotation="90"] { transform: rotate(90deg) translateY(-100%); }
-.textLayer[data-main-rotation="180"] { transform: rotate(180deg) translate(-100%, -100%); }
-.textLayer[data-main-rotation="270"] { transform: rotate(270deg) translateX(-100%); }
 
 @media (max-width: 960px) { .selection-hint { display: none; }.document-name { margin: 0; }.reader-header { gap: 14px; padding: 16px 22px; }.toolbar { padding-inline: 22px; } }
 @media (max-width: 640px) { .reader-header { padding: 14px 16px; min-height: 73px; gap: 13px; }.brand small { font-size: 10px; }.brand strong { font-size: 16px; }.brand-mark { width: 37px; height: 37px; font-size: 22px; }.document-name, .offline { display: none; }.reader-header > .primary { margin-left: auto; font-size: 12px; padding: 9px 12px; }.toolbar { padding: 8px 12px; gap: 9px; flex-wrap: wrap; }.page-form label { display: none; }.toolbar-divider { display: none; }.page-controls { gap: 4px; }.zoom-controls { margin-left: auto; gap: 3px; }.fit-button { font-size: 10px; padding: 7px; }.message, .no-text { padding: 10px 16px; }.page-stage { padding: 18px 16px 27px; }.reader-footer { padding-inline: 16px; }.keyboard-hint { display: none; }.empty-state { padding-block: 35px; }.paper-illustration { margin-bottom: 28px; }.privacy-note { font-size: 9px; } }

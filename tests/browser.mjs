@@ -21,10 +21,10 @@ const artifacts = path.join(root, "artifacts");
 const fixture = await readFile(path.join(root, "tests", "fixtures", "selection.html"));
 const manifest = JSON.parse(await readFile(path.join(extension, "manifest.json")));
 assert.equal(manifest.manifest_version, 3);
-assert.deepEqual(manifest.permissions, ["storage", "activeTab"]);
+assert.deepEqual(manifest.permissions, ["storage", "activeTab", "webRequest"]);
 assert.match(manifest.content_security_policy.extension_pages, /script-src 'self'/);
 assert.match(manifest.content_security_policy.extension_pages, /object-src 'none'/);
-assert.ok(!manifest.host_permissions, "No privileged host permissions needed");
+assert.deepEqual(manifest.host_permissions, ["http://*/*", "https://*/*", "file:///*"], "Automatic PDF handling uses only web and local file sources");
 assert.ok(!/(?:^|[\s;])'unsafe-eval'(?:[\s;]|$)/u.test(manifest.content_security_policy.extension_pages));
 
 const server = createServer((request, response) => {
@@ -69,7 +69,7 @@ try {
   browserVersion = context.browser().version();
   console.log(`Browser version: ${browserVersion}`);
   context.on("request", request => {
-    if (!request.url().startsWith(origin) && !request.url().startsWith("chrome-extension://") && !request.url().startsWith("data:")) externalRequests.push(request.url());
+    if (!request.url().startsWith(origin) && !/^(chrome-extension:|chrome:\/\/resources\/|file:|data:|blob:)/u.test(request.url())) externalRequests.push(request.url());
   });
   context.on("page", page => page.on("pageerror", error => pageErrors.push(error.message)));
   let worker = context.serviceWorkers()[0];

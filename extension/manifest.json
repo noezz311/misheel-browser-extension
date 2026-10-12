@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Мишээл — Солонгос толь",
-  "version": "1.1.0",
-  "description": "Вэб, HTML, PDF дээр солонгос текст сонгоход монгол утгыг хажууд нь харуулна. Офлайн толь болон PDF уншигч.",
+  "version": "1.2.0",
+  "description": "Солонгос текст сонгоход монгол утга гарна. PDF автоматаар нээж, тодруулах, үзгээр зурах, текст нэмэх, хадгалах боломжтой.",
   "minimum_chrome_version": "125",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "webRequest"],
+  "host_permissions": ["http://*/*", "https://*/*", "file:///*"],
   "background": {
     "service_worker": "background.js",
     "type": "module"

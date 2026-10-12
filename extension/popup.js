@@ -3,6 +3,7 @@ const toggle = document.getElementById("enabled");
 const results = document.getElementById("results");
 const queryInput = document.getElementById("query");
 const online = document.getElementById("online");
+const autoPdfToggle = document.getElementById("auto-pdf");
 let sequence = 0;
 let currentPdfUrl = null;
 
@@ -35,12 +36,18 @@ function paragraph(text, className) {
 }
 
 chrome.storage.local.get({ enabled: true }).then((settings) => { toggle.checked = settings.enabled !== false; });
+chrome.storage.local.get({ autoPdf: true }).then((settings) => { autoPdfToggle.checked = settings.autoPdf !== false; });
+autoPdfToggle.addEventListener("change", async () => {
+  try { await chrome.storage.local.set({ autoPdf: autoPdfToggle.checked }); }
+  catch { autoPdfToggle.checked = !autoPdfToggle.checked; results.replaceChildren(paragraph("PDF тохиргоог хадгалж чадсангүй.", "hint error")); }
+});
 toggle.addEventListener("change", async () => {
   try { await chrome.storage.local.set({ enabled: toggle.checked }); }
   catch { toggle.checked = !toggle.checked; results.replaceChildren(paragraph("Тохиргоог хадгалж чадсангүй.", "hint error")); }
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.enabled) toggle.checked = changes.enabled.newValue !== false;
+  if (area === "local" && changes.autoPdf) autoPdfToggle.checked = changes.autoPdf.newValue !== false;
 });
 chrome.runtime.sendMessage({ type: "GET_INFO" }).then((response) => {
   if (response?.ok && response.info.wordCount) {

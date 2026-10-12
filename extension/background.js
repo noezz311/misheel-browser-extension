@@ -1,4 +1,7 @@
 import { createDictionaryLookup, MAX_SELECTION_LENGTH } from "./dictionary.mjs";
+import { installAutomaticPdf } from "./automatic-pdf.mjs";
+
+installAutomaticPdf(chrome);
 
 const lookup = createDictionaryLookup(async (key) => {
   const response = await fetch(chrome.runtime.getURL(`data/shards/${key}.json`));
@@ -7,7 +10,7 @@ const lookup = createDictionaryLookup(async (key) => {
 });
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.get({ enabled: true }).then((settings) => chrome.storage.local.set({ enabled: settings.enabled !== false }));
+  chrome.storage.local.get({ enabled: true, autoPdf: true }).then((settings) => chrome.storage.local.set({ enabled: settings.enabled !== false, autoPdf: settings.autoPdf !== false }));
 });
 
 // Returning true keeps the message channel alive while the local shard is read.

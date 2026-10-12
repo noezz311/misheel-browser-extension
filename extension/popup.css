@@ -10,12 +10,13 @@ main { padding: 18px 22px; }
 .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; padding-bottom: 20px; }
 .toggle-row strong { display: block; font-size: 13px; }
 .toggle-row small { display: block; margin-top: 5px; color: #7b8699; font-size: 11px; }
-#enabled { position: absolute; opacity: 0; width: 1px; height: 1px; }
+#enabled, #auto-pdf { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .switch { flex-shrink: 0; margin-left: auto; width: 36px; height: 21px; border-radius: 20px; background: #b7bfce; padding: 3px; transition: background .15s; }
 .switch::after { content: ""; display: block; height: 15px; width: 15px; border-radius: 50%; background: #fff; transition: transform .15s; }
-#enabled:checked + .switch { background: #4265e8; }
-#enabled:checked + .switch::after { transform: translateX(15px); }
-#enabled:focus-visible + .switch { outline: 3px solid #99adff; outline-offset: 3px; }
+#enabled:checked + .switch, #auto-pdf:checked + .switch { background: #4265e8; }
+#enabled:checked + .switch::after, #auto-pdf:checked + .switch::after { transform: translateX(15px); }
+#enabled:focus-visible + .switch, #auto-pdf:focus-visible + .switch { outline: 3px solid #99adff; outline-offset: 3px; }
+.pdf-auto-row { padding-bottom: 12px; }
 .search-label { display: block; font-size: 12px; color: #65718a; font-weight: 600; margin-bottom: 8px; }
 .pdf-actions { padding-bottom: 16px; }
 .pdf-actions button { width: 100%; padding: 11px 12px; border-radius: 9px; font-size: 12px; }

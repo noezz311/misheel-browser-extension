@@ -125,6 +125,7 @@
   }
 
   function readSelection() {
+    if (document.documentElement.dataset.misheelAnnotating === "true") return null;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !selection.rangeCount) return null;
     if (isInsidePopup(selection.anchorNode) || isInsidePopup(selection.focusNode)) return null;
