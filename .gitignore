@@ -1,0 +1,10 @@
+.work/
+node_modules/
+artifacts/
+*.realm.lock
+*.realm.management/
+*.apk
+__pycache__/
+*.py[cod]
+.env
+.env.*

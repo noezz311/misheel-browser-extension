@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Мишээл extension integration fixture</title>
+<style>
+  body { margin: 32px; min-height: 1400px; font-family: Arial, sans-serif; font-size: 26px; }
+  .sample { display: block; width: max-content; margin: 24px 0; }
+  #edge { position: fixed; right: 4px; bottom: 4px; margin: 0; }
+  #outside { position: fixed; right: 24px; top: 24px; }
+  #editable, #input, #textarea { font: inherit; margin: 12px 0; display: block; }
+</style>
+<button id="outside">Outside</button>
+<p id="school" class="sample" lang="ko">학교</p>
+<p id="apple" class="sample" lang="ko">사과</p>
+<p id="sea" class="sample" lang="ko" style="position:fixed;left:32px;bottom:4px">바다</p>
+<p id="words" class="sample" lang="ko">학교 사과</p>
+<p id="unknown" class="sample" lang="ko">쀍쀍쀍쀍</p>
+<p id="english" class="sample">Only English words</p>
+<div id="editable" contenteditable="true" lang="ko">학교</div>
+<input id="input" value="학교" aria-label="Korean input">
+<textarea id="textarea" aria-label="Korean textarea">학교</textarea>
+<p id="long" class="sample" lang="ko"></p>
+<p id="edge" class="sample" lang="ko">학교</p>
+<script>document.getElementById('long').textContent = '학교 '.repeat(180);</script>
+</html>

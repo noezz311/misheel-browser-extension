@@ -1,0 +1,6 @@
+{
+  "name": "misheel-selection-dictionary",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node --test tests/*.test.mjs", "test:browser": "node tests/browser.mjs", "test:pdf": "node tests/pdf-browser.mjs", "package": "powershell -NoProfile -File tools/package.ps1"}
+}

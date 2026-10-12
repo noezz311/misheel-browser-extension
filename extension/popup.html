@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Мишээл толь</title>
+  <link rel="stylesheet" href="popup.css">
+  <script src="popup.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="brand-icon" aria-hidden="true">한</div>
+    <div><h1>Мишээл</h1><p>Солонгос → Монгол</p></div>
+    <span class="badge">ОФЛАЙН</span>
+  </header>
+  <main>
+    <label class="toggle-row" for="enabled"><span><strong>Сонгосон үгийг орчуулах</strong><small>Текстээ сонгоход хажууд нь гарна</small></span><input id="enabled" type="checkbox" checked role="switch"><span class="switch" aria-hidden="true"></span></label>
+    <div class="pdf-actions">
+      <button id="open-pdf" type="button">PDF файл нээх ↗</button>
+      <button id="open-current-pdf" type="button" hidden>Энэ PDF-ийг Мишээлээр нээх ↗</button>
+      <p class="pdf-hint">PDF доторх үгээ сонгоод орчуулгыг хараарай.</p>
+    </div>
+    <form id="search-form">
+      <label class="search-label" for="query">Толиос хайх</label>
+      <div class="search-row"><input id="query" lang="ko" type="search" placeholder="Жишээ: 학교" autocomplete="off" maxlength="500" autofocus><button type="submit" aria-label="Хайх">Хайх</button></div>
+    </form>
+    <div id="results" aria-live="polite"><p class="hint">Вэб дээрх солонгос үгийг хулганаар сонгоорой.</p></div>
+    <a id="online" class="online" target="_blank" rel="noopener noreferrer" hidden>Google Translate-аар өгүүлбэр орчуулах ↗</a>
+  </main>
+  <footer><span id="dictionary-info">Мишээл аппын офлайн толь</span><a href="help.html" target="_blank" rel="noopener">Заавар</a></footer>
+</body>
+</html>

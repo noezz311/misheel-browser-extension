@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Мишээл · PDF уншигч</title>
+  <link rel="icon" href="icons/32.png">
+  <link rel="stylesheet" href="pdf.css">
+  <script src="content.js" defer></script>
+  <script src="pdf.mjs" type="module"></script>
+</head>
+<body>
+  <header class="reader-header">
+    <a class="brand" href="help.html" target="_blank" rel="noopener" aria-label="Мишээл толийн заавар">
+      <span class="brand-mark" aria-hidden="true">한</span>
+      <span><strong>Мишээл</strong><small>PDF уншигч · Солонгос → Монгол</small></span>
+    </a>
+    <div class="document-name" id="document-name">Унших PDF файлаа нээгээрэй</div>
+    <span class="offline"><span aria-hidden="true"></span> ОФЛАЙН</span>
+    <button id="open-file" class="primary" type="button">PDF нээх</button>
+    <input id="file-input" class="visually-hidden" type="file" accept="application/pdf,.pdf" aria-label="PDF файл сонгох" tabindex="-1">
+  </header>
+
+  <section id="toolbar" class="toolbar" aria-label="PDF унших удирдлага" hidden>
+    <div class="page-controls">
+      <button id="previous-page" class="icon-button" type="button" aria-label="Өмнөх хуудас" title="Өмнөх хуудас (←)">‹</button>
+      <form id="page-form" class="page-form">
+        <label for="page-number">Хуудас</label>
+        <input id="page-number" type="number" value="1" min="1" step="1" inputmode="numeric" aria-label="Хуудасны дугаар">
+        <span class="page-total">/ <span id="page-count">0</span></span>
+      </form>
+      <button id="next-page" class="icon-button" type="button" aria-label="Дараагийн хуудас" title="Дараагийн хуудас (→)">›</button>
+    </div>
+    <div class="toolbar-divider" aria-hidden="true"></div>
+    <div class="zoom-controls">
+      <button id="zoom-out" class="icon-button zoom-button" type="button" aria-label="Жижигрүүлэх" title="Жижигрүүлэх">−</button>
+      <button id="zoom-reset" class="zoom-value" type="button" title="100% хэмжээтэй харах">100%</button>
+      <button id="zoom-in" class="icon-button zoom-button" type="button" aria-label="Томруулах" title="Томруулах">+</button>
+      <button id="fit-width" class="secondary fit-button" type="button" aria-pressed="true">Өргөнд тааруулах</button>
+    </div>
+    <p class="selection-hint">Солонгос текстээ сонгоод утгыг нь хажууд нь хараарай</p>
+  </section>
+
+  <div id="message" class="message" role="alert" hidden></div>
+  <div id="no-text" class="no-text" role="status" hidden>Энэ хуудсанд сонгож болох текст алга. Зураг болгож сканнердсан PDF-ийн текстийг таних боломж одоогоор байхгүй.</div>
+
+  <main id="reader" class="reader" aria-label="PDF хуудас">
+    <section id="empty-state" class="empty-state">
+      <div class="paper-illustration" aria-hidden="true">
+        <div class="paper-top"><span>PDF</span><i></i></div>
+        <div class="paper-lines"><i></i><i></i><i></i></div>
+        <div class="selected-word" lang="ko">학교</div>
+        <div class="translation-bubble"><small>МОНГОЛ УТГА</small><strong>сургууль</strong></div>
+        <div class="paper-lines short"><i></i><i></i></div>
+      </div>
+      <span class="eyebrow">УНШИХДАА ОРЧУУЛ</span>
+      <h1>Солонгос PDF-ээ<br>Мишээлтэй уншаарай</h1>
+      <p>Үг, хэллэгээ хулганаар сонгоход<br>монгол утга нь хажууд нь гарч ирнэ.</p>
+      <button id="choose-file" class="primary large" type="button">PDF файл сонгох <span aria-hidden="true">↗</span></button>
+      <p class="drop-hint">Эсвэл PDF файлаа энд чирж оруулаарай · 200 МБ хүртэл</p>
+      <div class="privacy-note"><span aria-hidden="true">✓</span> Файл таны төхөөрөмж дээр нээгдэнэ. Серверт илгээхгүй.</div>
+    </section>
+    <div id="page-stage" class="page-stage" hidden>
+      <div id="page-shell" class="page-shell"></div>
+    </div>
+    <div id="busy" class="busy" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-label">PDF нээж байна…</span></div>
+  </main>
+
+  <footer class="reader-footer"><span id="reader-status" role="status">Текст сонгох боломжтой PDF дээр ажиллана</span><span class="keyboard-hint">← → хуудас солих</span><a href="help.html" target="_blank" rel="noopener">Заавар</a></footer>
+  <div id="drop-overlay" class="drop-overlay" hidden><div><span aria-hidden="true">↓</span><strong>PDF файлаа энд тавиарай</strong><p>Мишээл уншигчаар нээнэ</p></div></div>
+
+  <dialog id="password-dialog" class="password-dialog" aria-labelledby="password-title">
+    <form id="password-form">
+      <span class="dialog-mark" aria-hidden="true">🔒</span>
+      <h2 id="password-title">PDF нууц үгтэй байна</h2>
+      <p id="password-hint">Файлыг нээхийн тулд нууц үгийг оруулна уу.</p>
+      <label for="pdf-password">Нууц үг</label>
+      <input id="pdf-password" type="password" autocomplete="off" required autofocus>
+      <div class="dialog-actions"><button id="cancel-password" class="secondary" type="button">Болих</button><button class="primary" type="submit">Нээх</button></div>
+    </form>
+  </dialog>
+</body>
+</html>
