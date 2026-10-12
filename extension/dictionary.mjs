@@ -6,12 +6,34 @@ const ENDINGS = [
   ["하였습니다", "하다"], ["했습니다", "하다"], ["합니다", "하다"], ["하세요", "하다"],
   ["하셨어요", "하다"], ["했어요", "하다"], ["해요", "하다"], ["하는", "하다"],
   ["하여", "하다"], ["하면", "하다"], ["하고", "하다"], ["해서", "하다"],
-  ["습니다", "다"], ["었어요", "다"], ["았어요", "다"], ["어요", "다"],
+  ["었습니다", "다"], ["았습니다", "다"], ["습니다", "다"],
+  ["었어요", "다"], ["았어요", "다"], ["어요", "다"],
   ["아요", "다"], ["는다", "다"], ["는", "다"], ["고", "다"]
 ];
+const COPULAS = ["이었습니다", "였습니다", "이었어요", "였어요", "입니다", "이에요", "예요"];
+
+// Hangul syllables encode their vowel and final consonant in fixed positions.
+function changeFinal(stem, expected, replacement) {
+  const code = stem.charCodeAt(stem.length - 1) - 0xac00;
+  if (code < 0 || code >= 11172 || code % 28 !== expected) return "";
+  return stem.slice(0, -1) + String.fromCharCode(0xac00 + code - expected + replacement);
+}
+
+function contractedStem(stem) {
+  const code = stem.charCodeAt(stem.length - 1) - 0xac00;
+  if (code < 0 || code >= 11172 || code % 28 !== 0) return "";
+  const vowel = Math.floor(code / 28) % 21;
+  // 봐/와 → 보/오, 줘 → 주, 돼 → 되. Other irregular forms need a
+  // morphology dictionary; avoid arbitrary prefix or syllable matches.
+  const original = { 9: 8, 14: 13, 10: 11 }[vowel];
+  if (original === undefined) return "";
+  return stem.slice(0, -1) + String.fromCharCode(0xac00 + code + (original - vowel) * 28);
+}
 
 export function normalizeQuery(value) {
-  return String(value ?? "").normalize("NFC").replace(/[\u200b-\u200d\ufeff]/gu, "")
+  // Websites may put soft hyphens, bidi marks or word joiners inside a word.
+  // Remove formatting before NFC so a mark between Hangul jamo cannot block composition.
+  return String(value ?? "").replace(/\p{Cf}/gu, "").normalize("NFC")
     .replace(/\s+/gu, " ").trim().replace(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, "").trim();
 }
 
@@ -27,6 +49,22 @@ export function wordCandidates(word) {
     if (word.endsWith(suffix) && (word.length > suffix.length || replacement === "하다")) {
       candidates.push(word.slice(0, -suffix.length) + replacement);
     }
+  }
+  for (const suffix of ["니다", "니까"]) {
+    if (!word.endsWith(suffix)) continue;
+    const stem = changeFinal(word.slice(0, -suffix.length), 17, 0); // ㅂ: 갑니다 → 가다
+    if (stem) candidates.push(stem + "다");
+  }
+  for (const suffix of ["어요", "습니다", "다"]) {
+    if (!word.endsWith(suffix)) continue;
+    const stem = changeFinal(word.slice(0, -suffix.length), 20, 0); // ㅆ: 갔어요 → 가다
+    if (!stem) continue;
+    candidates.push(stem + "다");
+    const original = contractedStem(stem);
+    if (original) candidates.push(original + "다");
+  }
+  for (const suffix of COPULAS) {
+    if (word.endsWith(suffix) && word.length > suffix.length) candidates.push(word.slice(0, -suffix.length));
   }
   for (const suffix of PARTICLES) {
     if (word.endsWith(suffix) && word.length > suffix.length) candidates.push(word.slice(0, -suffix.length));

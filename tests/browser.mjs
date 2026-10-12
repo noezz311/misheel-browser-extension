@@ -221,6 +221,39 @@ try {
     assert.match(await card.locator(".empty").textContent(), /олдсонгүй/);
   });
 
+  async function selectWebsiteText(text) {
+    await page.evaluate(text => {
+      let node = document.getElementById("website-regression");
+      if (!node) {
+        node = document.createElement("p");
+        node.id = "website-regression";
+        node.style.cssText = "position:fixed;left:32px;top:120px;margin:0";
+        document.body.append(node);
+      }
+      node.textContent = text;
+    }, text);
+    await select("website-regression");
+    await card.locator(".meaning, .empty").first().waitFor({ state: "visible" });
+    return card.locator(".word").allTextContents();
+  }
+
+  await test("Ordinary website selections recover common noun and verb endings from the real dictionary", async () => {
+    const forms = [["학교입니다", "학교"], ["먹었습니다", "먹다"], ["읽었습니다", "읽다"],
+      ["갔어요", "가다"], ["봤어요", "보다"], ["갑니다", "가다"], ["됩니다", "되다"]];
+    const actual = [];
+    for (const [form, lemma] of forms) actual.push([form, (await selectWebsiteText(form)).includes(lemma)]);
+    assert.deepEqual(actual, forms.map(([form]) => [form, true]));
+  });
+
+  await test("Invisible website formatting keeps a whole Korean word and composes decomposed Hangul", async () => {
+    const forms = ["학\u00ad교", "학\u200e교", "학\u2060교", "ᄒ\u200bᅡᆨ교"];
+    const actual = [];
+    for (const form of forms) actual.push([form, await selectWebsiteText(form)]);
+    assert.deepEqual(actual, forms.map(form => [form, ["학교"]]));
+    await clear();
+    await page.evaluate(() => document.getElementById("website-regression").remove());
+  });
+
   await test("Selections over 500 characters show the limit without truncating or submitting", async () => {
     await select("long"); await card.locator(".empty").waitFor({ state: "visible" });
     assert.match(await card.locator(".empty").textContent(), /урт|500|хэтэр/);

@@ -18,6 +18,8 @@
   let positionFrame = 0;
   let pointer = null;
   let dismissedSelectionKey = "";
+  const dockTarget = location.protocol === "chrome-extension:" && location.pathname === "/pdf.html"
+    ? document.getElementById("translation-panel") : null;
 
   const css = `
     :host { all: initial; position: fixed; z-index: 2147483647; display: block;
@@ -148,6 +150,7 @@
     if (!popup) return;
     if (rememberSelection) dismissedSelectionKey = popup.selection.key;
     popup.host.remove();
+    dockTarget?.classList.remove("has-result");
     popup = null;
     requestVersion++;
   }
@@ -163,6 +166,10 @@
   function positionPopup() {
     if (!popup) return;
     const { host, selection } = popup;
+    if (dockTarget) {
+      host.style.visibility = "visible";
+      return;
+    }
     if (!selection.range.commonAncestorContainer.isConnected) {
       dismiss();
       return;
@@ -193,12 +200,16 @@
     dismissedSelectionKey = "";
     const host = document.createElement("div");
     host.setAttribute("data-misheel-popup", "");
-    host.style.setProperty("position", "fixed", "important");
+    host.style.setProperty("position", dockTarget ? "relative" : "fixed", "important");
     host.style.setProperty("z-index", "2147483647", "important");
     host.style.setProperty("visibility", "hidden", "important");
     const shadow = host.attachShadow({ mode: "open" });
     const style = element("style");
-    style.textContent = css;
+    style.textContent = css + (dockTarget ? `
+      :host { position: relative; width: 100%; max-width: none; height: 100%; }
+      .card { height: 100%; max-height: none; border: 0; border-radius: 0; box-shadow: none; }
+      .body { flex: 1; }
+    ` : "");
     const card = element("section", "card");
     card.setAttribute("role", "dialog");
     card.setAttribute("aria-label", "Мишээл · Солонгос → Монгол");
@@ -236,7 +247,8 @@
     card.append(header, body, footer);
     shadow.append(style, card);
     popup = { host, shadow, content, selection };
-    document.documentElement.append(host);
+    (dockTarget || document.documentElement).append(host);
+    dockTarget?.classList.add("has-result");
     // Remove the initial important visibility declaration before positioning.
     host.style.removeProperty("visibility");
     positionPopup();

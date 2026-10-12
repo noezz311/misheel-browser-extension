@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const require = createRequire(import.meta.url);
 let playwright;
@@ -57,14 +57,15 @@ try {
   await page.goto(`chrome-extension://${extensionId}/pdf.html`);
   const card = page.locator("[data-misheel-popup]");
   async function choose(name) { await page.locator("#file-input").setInputFiles(fixture(name)); }
-  async function waitWord(word) {
-    const span = page.locator(".textLayer span").filter({ hasText: new RegExp(`^${word}$`, "u") }).first();
+  async function waitWord(word, pageNumber = 1) {
+    await page.waitForFunction(number => document.getElementById("page-number").value === String(number), pageNumber);
+    const span = page.locator(`.page[data-page-number="${pageNumber}"] .textLayer span`).filter({ hasText: new RegExp(`^${word}$`, "u") }).first();
     await span.waitFor({ state: "visible" });
     await page.locator("#busy").waitFor({ state: "hidden" });
     return span;
   }
-  async function selectWord(word, mouse = false) {
-    const span = await waitWord(word);
+  async function selectWord(word, mouse = false, pageNumber = 1) {
+    const span = await waitWord(word, pageNumber);
     await page.keyboard.press("Escape");
     await page.evaluate(() => { document.activeElement?.blur(); window.getSelection().removeAllRanges(); });
     if (mouse) {
@@ -92,7 +93,7 @@ try {
     assert.equal(await page.locator("#page-number").inputValue(), "1");
     assert.equal(await page.locator("#document-name").textContent(), "korean-selectable.pdf");
     assert.equal(await page.locator("#no-text").isVisible(), false);
-    const canvas = await page.locator("#page-shell canvas").evaluate(node => ({ width: node.width, height: node.height }));
+    const canvas = await page.locator('.page[data-page-number="1"] canvas').evaluate(node => ({ width: node.width, height: node.height }));
     assert.ok(canvas.width > 500 && canvas.height > 500);
     assert.deepEqual(requests, []);
   });
@@ -101,24 +102,70 @@ try {
     await selectWord("학교", true);
     assert.match(await card.locator(".meaning").first().textContent(), /сургуул/u);
     assert.match(await card.locator(".examples").textContent(), /сурагчдад/u);
+    assert.equal(await card.evaluate(node => node.parentElement.id), "translation-panel", "PDF definitions appear inside the right dictionary panel");
+    const panel = await page.locator("#translation-panel").boundingBox();
+    const reader = await page.locator("#reader").boundingBox();
+    assert.ok(panel.x >= reader.x + reader.width - 1, "The dictionary sits beside the PDF reader");
+    assert.equal(panel.x + panel.width, page.viewportSize().width, "The dictionary panel reaches the right window edge");
+    assert.equal(await page.locator(".translation-placeholder").isVisible(), false);
     await page.screenshot({ path: path.join(artifacts, "pdf-selection.png") });
     await card.screenshot({ path: path.join(artifacts, "pdf-selection-card.png") });
   });
 
+  await test("Wheel scrolling crosses continuous PDF pages, updates the page field and clears the old dictionary", async () => {
+    assert.equal(await page.locator("#page-shell > .page").count(), 2, "Both pages stay in the continuous viewer");
+    const geometry = await page.locator("#reader").evaluate(reader => {
+      const pages = [...reader.querySelectorAll(".page")].map(p => p.getBoundingClientRect());
+      return { height: reader.clientHeight, total: reader.scrollHeight,
+        firstBottom: pages[0].bottom, secondTop: pages[1].top, firstTop: pages[0].top };
+    });
+    assert.ok(geometry.total > geometry.height * 2, "The reader scroll range contains both full pages");
+    assert.ok(geometry.secondTop > geometry.firstBottom, "A visible gap separates adjacent pages");
+    const reader = await page.locator("#reader").boundingBox();
+    await page.mouse.move(reader.x + reader.width / 2, reader.y + reader.height / 2);
+    await page.mouse.wheel(0, geometry.secondTop - geometry.firstTop);
+    const secondWord = await waitWord("사과", 2);
+    await page.waitForFunction(() => !document.querySelector("[data-misheel-popup]"));
+    assert.equal(await page.evaluate(() => window.getSelection().toString()), "");
+    const wordBox = await secondWord.boundingBox();
+    assert.ok(wordBox.y >= reader.y && wordBox.y + wordBox.height <= reader.y + reader.height, "Page two text is actually inside the reader viewport");
+    assert.equal(await page.locator(".translation-placeholder").isVisible(), true);
+    assert.equal(await page.locator("#next-page").isDisabled(), true);
+    assert.match(await page.locator("#reader-status").textContent(), /^2 \/ 2/u);
+    await selectWord("사과", true, 2);
+    assert.match(await card.locator(".meaning").first().textContent(), /алим/u);
+    const lowerScroll = await page.locator("#reader").evaluate(node => node.scrollTop);
+    await page.mouse.move(reader.x + reader.width / 2, reader.y + reader.height / 2);
+    await page.mouse.wheel(0, -220);
+    await page.waitForFunction(previous => document.getElementById("reader").scrollTop < previous - 150, lowerScroll);
+    const boundary = await page.locator("#reader").evaluate(node => {
+      const pages = [...node.querySelectorAll(".page")].map(p => p.getBoundingClientRect());
+      const reader = node.getBoundingClientRect();
+      return { firstBottom: pages[0].bottom, secondTop: pages[1].top, readerTop: reader.top, readerBottom: reader.bottom };
+    });
+    assert.ok(boundary.firstBottom > boundary.readerTop && boundary.secondTop < boundary.readerBottom, "The adjacent page boundary is visible inside one scrolling view");
+    await page.screenshot({ path: path.join(artifacts, "pdf-continuous-scroll.png") });
+    await page.mouse.move(reader.x + reader.width / 2, reader.y + reader.height / 2);
+    await page.mouse.wheel(0, -geometry.total);
+    await waitWord("학교");
+    assert.equal(await page.locator("#previous-page").isDisabled(), true);
+    await selectWord("학교");
+  });
+
   await test("PDF next/previous controls clear old selection and translate the next page", async () => {
-    await page.locator("#next-page").click(); await waitWord("사과");
+    await page.locator("#next-page").click(); await waitWord("사과", 2);
     assert.equal(await page.locator("#page-number").inputValue(), "2");
     assert.equal(await card.count(), 0);
     assert.equal(await page.locator("#next-page").isDisabled(), true);
-    await selectWord("사과"); assert.match(await card.locator(".meaning").first().textContent(), /алим/u);
+    await selectWord("사과", false, 2); assert.match(await card.locator(".meaning").first().textContent(), /алим/u);
     await page.locator("#previous-page").click(); await waitWord("학교");
     assert.equal(await page.locator("#previous-page").isDisabled(), true);
   });
 
   await test("Zoom, 100% reset and fit width preserve selectable Korean text", async () => {
-    const before = await page.locator("#page-shell").boundingBox();
+    const before = await page.locator('.page[data-page-number="1"]').boundingBox();
     await page.locator("#zoom-in").click(); await waitWord("학교");
-    const after = await page.locator("#page-shell").boundingBox();
+    const after = await page.locator('.page[data-page-number="1"]').boundingBox();
     assert.ok(after.width > before.width, `${before.width} -> ${after.width}`);
     assert.equal(await page.locator("#fit-width").getAttribute("aria-pressed"), "false");
     await page.locator("#zoom-reset").click(); await waitWord("학교");
@@ -131,7 +178,7 @@ try {
 
   await test("Page input and unselected Arrow keys navigate the PDF", async () => {
     await page.locator("#page-number").fill("2"); await page.locator("#page-number").press("Enter");
-    await waitWord("사과");
+    await waitWord("사과", 2);
     await page.locator("#page-number").blur();
     await page.keyboard.press("ArrowLeft"); await waitWord("학교");
     assert.equal(await page.locator("#page-number").inputValue(), "1");
@@ -150,6 +197,36 @@ try {
     assert.match(await page.locator("#no-text").textContent(), /сканнердсан/u);
     assert.equal(await page.locator(".textLayer span").count(), 0);
     assert.equal(await page.locator("#page-count").textContent(), "1");
+  });
+
+  await test("The scanned-page advisory follows scrolling and cached page navigation in a mixed PDF", async () => {
+    const mixed = await page.evaluate(async ({ sources, extensionId }) => {
+      await import(`chrome-extension://${extensionId}/vendor/pdf-lib/pdf-lib.min.js`);
+      const { PDFDocument } = globalThis.PDFLib;
+      const output = await PDFDocument.create();
+      for (const source of sources) {
+        const document = await PDFDocument.load(new Uint8Array(source));
+        const [first] = await output.copyPages(document, [0]);
+        output.addPage(first);
+      }
+      return [...await output.save()];
+    }, { sources: [Array.from(await readFile(fixture("korean-selectable.pdf"))), Array.from(await readFile(fixture("korean-scanned.pdf")))], extensionId });
+    await page.locator("#file-input").setInputFiles({ name: "mixed-text-and-scanned.pdf", mimeType: "application/pdf", buffer: Buffer.from(mixed) });
+    await waitWord("학교");
+    const reader = await page.locator("#reader").boundingBox();
+    const secondOffset = await page.locator('.page[data-page-number="2"]').evaluate(p => p.offsetTop);
+    await page.mouse.move(reader.x + reader.width / 2, reader.y + reader.height / 2);
+    await page.mouse.wheel(0, secondOffset);
+    await page.waitForFunction(() => document.getElementById("page-number").value === "2");
+    await page.locator("#busy").waitFor({ state: "hidden" });
+    await page.locator("#no-text").waitFor({ state: "visible" });
+    await page.locator("#previous-page").click(); await waitWord("학교");
+    assert.equal(await page.locator("#no-text").isVisible(), false);
+    await page.locator("#next-page").click();
+    await page.waitForFunction(() => document.getElementById("page-number").value === "2");
+    await page.locator("#busy").waitFor({ state: "hidden" });
+    await page.locator("#no-text").waitFor({ state: "visible" });
+    assert.equal(await page.locator('.page[data-page-number="2"] .textLayer span').count(), 0);
   });
 
   await test("New PDF selection wins when a previous file read completes late", async () => {
@@ -218,6 +295,73 @@ try {
     await page.locator("#message").waitFor({ state: "visible" });
     assert.match(await page.locator("#message").textContent(), /гэмтсэн|PDF форматтай биш/u);
     await choose("korean-selectable.pdf"); await waitWord("학교");
+  });
+
+  await test("Notes on both continuously scrolled pages save, reopen and remain editable", async () => {
+    async function tool(name) {
+      await page.locator(`#tool-${name}`).click();
+      await page.waitForFunction(id => document.getElementById(id).getAttribute("aria-pressed") === "true", `tool-${name}`);
+      await page.locator("#busy").waitFor({ state: "hidden" });
+    }
+    async function note(number, contents) {
+      await tool("text");
+      const layer = page.locator(`.page[data-page-number="${number}"] .annotationEditorLayer`);
+      await layer.waitFor({ state: "visible" });
+      const box = await layer.boundingBox();
+      await page.mouse.click(box.x + box.width / 2, box.y + 270);
+      const input = layer.locator(".freeTextEditor [contenteditable='true']").last();
+      await input.waitFor({ state: "visible" });
+      await input.fill(contents);
+      await tool("read");
+    }
+    async function save(name) {
+      const pending = page.waitForEvent("download");
+      await page.locator("#save-pdf").click();
+      const download = await pending;
+      const filename = path.join(artifacts, name);
+      await download.saveAs(filename);
+      await page.waitForFunction(() => !document.getElementById("save-pdf").disabled);
+      return filename;
+    }
+    async function notes(filename) {
+      return page.evaluate(async ({ bytes, extensionId }) => {
+        const pdfjs = await import(`chrome-extension://${extensionId}/vendor/pdfjs/pdf.mjs`);
+        const task = pdfjs.getDocument({ data: new Uint8Array(bytes), isEvalSupported: false });
+        const document = await task.promise, notes = [];
+        for (let number = 1; number <= document.numPages; number++) {
+          const p = await document.getPage(number);
+          notes.push(...(await p.getAnnotations()).filter(a => a.annotationType === 3).map(a => ({ page: number, text: a.contentsObj?.str, appearance: a.hasAppearance })));
+        }
+        await task.destroy();
+        return notes;
+      }, { bytes: Array.from(await readFile(filename)), extensionId });
+    }
+    await note(1, "First page Тэмдэглэл 학교");
+    const reader = await page.locator("#reader").boundingBox();
+    const secondOffset = await page.locator('.page[data-page-number="2"]').evaluate(p => p.offsetTop);
+    await page.mouse.move(reader.x + reader.width / 2, reader.y + reader.height / 2);
+    await page.mouse.wheel(0, secondOffset);
+    await waitWord("사과", 2);
+    await note(2, "Second page Тэмдэглэл 사과");
+    const saved = await save("pdf-continuous-notes.pdf");
+    assert.deepEqual(await notes(saved), [
+      { page: 1, text: "First page Тэмдэглэл 학교", appearance: true },
+      { page: 2, text: "Second page Тэмдэглэл 사과", appearance: true },
+    ]);
+    await page.locator("#file-input").setInputFiles(saved); await waitWord("학교");
+    await page.locator("#next-page").click(); await waitWord("사과", 2);
+    await tool("text");
+    const editor = page.locator('.page[data-page-number="2"] .freeTextEditor').first();
+    await editor.waitFor({ state: "visible" });
+    await editor.dblclick();
+    await editor.locator("[contenteditable='true']").fill("Edited second page Тэмдэглэл 사과");
+    await tool("read");
+    const edited = await save("pdf-continuous-notes-edited.pdf");
+    assert.deepEqual(await notes(edited), [
+      { page: 1, text: "First page Тэмдэглэл 학교", appearance: true },
+      { page: 2, text: "Edited second page Тэмдэглэл 사과", appearance: true },
+    ]);
+    await page.screenshot({ path: path.join(artifacts, "pdf-continuous-notes-reopened.png") });
   });
 
   await test("PDF reader and dictionary remain offline with no external requests or script errors", async () => {

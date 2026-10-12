@@ -2,7 +2,7 @@ import * as pdfjsLib from "./vendor/pdfjs/pdf.mjs";
 import { addUnicodeNoteAppearances } from "./pdf-appearance.mjs";
 // The generic viewer consumes the same PDF.js namespace as the packaged core.
 globalThis.pdfjsLib = pdfjsLib;
-const { PDFViewer, EventBus, PDFLinkService, LinkTarget, ScrollMode } = await import("./vendor/pdfjs/pdf_viewer.mjs");
+const { PDFViewer, EventBus, PDFLinkService, LinkTarget, ScrollMode, RenderingStates } = await import("./vendor/pdfjs/pdf_viewer.mjs");
 const { getDocument, GlobalWorkerOptions, PasswordResponses, AnnotationEditorType, AnnotationEditorParamsType, AnnotationMode } = pdfjsLib;
 
 const byId = (id) => document.getElementById(id);
@@ -25,6 +25,7 @@ const state = {
   passwordCallback: null, passwordRequest: 0, dragDepth: 0, lastReaderWidth: 0,
   remoteController: null, editor: null, mode: AnnotationEditorType.NONE, dirty: false, saving: false, editRevision: 0,
   filename: "document.pdf", sourceUrl: null, initialHash: "", editorStates: {}, editorDefaultsSet: false,
+  pageHasText: new Map(),
   colors: { [AnnotationEditorType.HIGHLIGHT]: "#fff066", [AnnotationEditorType.INK]: "#267351", [AnnotationEditorType.FREETEXT]: "#20352c" },
 };
 
@@ -51,7 +52,7 @@ const viewer = new PDFViewer({
   maxCanvasPixels: 16_000_000, maxCanvasDim: 8192, imageResourcesPath: assetUrl("images/"),
 });
 linkService.setViewer(viewer);
-viewer.scrollMode = ScrollMode.PAGE; // One page, with native editable annotation layers.
+viewer.scrollMode = ScrollMode.VERTICAL; // Continuous pages retain native editable annotation layers.
 
 function commitAnnotations() {
   state.editor?.commitOrRemove();
@@ -156,8 +157,11 @@ eventBus.on("pagesinit", () => {
 });
 eventBus.on("pagechanging", ({ pageNumber }) => {
   commitAnnotations();
+  if (state.mode === AnnotationEditorType.NONE) window.getSelection()?.removeAllRanges();
   state.pageNumber = pageNumber;
-  ui["no-text"].hidden = true;
+  ui["no-text"].hidden = state.pageHasText.get(pageNumber) !== false;
+  const pageView = viewer.getPageView(pageNumber - 1);
+  busy(pageView?.renderingState !== RenderingStates.FINISHED, `${pageNumber}-р хуудас ачаалж байна…`);
   updateControls(); updateStatus();
 });
 eventBus.on("scalechanging", ({ scale }) => { state.zoom = scale; updateControls(); });
@@ -169,8 +173,10 @@ eventBus.on("pagerendered", ({ pageNumber, error }) => {
   updateStatus();
 });
 eventBus.on("textlayerrendered", ({ pageNumber, source }) => {
+  const hasText = [...source.div.querySelectorAll(".textLayer span")].some(span => span.textContent.trim());
+  state.pageHasText.set(pageNumber, hasText);
   if (pageNumber !== state.pageNumber) return;
-  ui["no-text"].hidden = [...source.div.querySelectorAll(".textLayer span")].some(span => span.textContent.trim());
+  ui["no-text"].hidden = hasText;
 });
 eventBus.on("annotationeditorlayerrendered", () => {
   if (!state.editor || state.editorDefaultsSet) return;
@@ -230,6 +236,7 @@ function forgetDocument() {
   state.editor = null;
   state.editorDefaultsSet = false;
   state.editorStates = {};
+  state.pageHasText.clear();
   state.dirty = false;
   state.editRevision = 0;
   ui["save-status"].textContent = "";
@@ -445,7 +452,6 @@ function goToPage(value) {
   commitAnnotations();
   message();
   viewer.currentPageNumber = page;
-  ui.reader.scrollTo(0, 0);
 }
 
 function zoom(value) {

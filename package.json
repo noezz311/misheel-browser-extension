@@ -8,6 +8,7 @@
     "test:pdf": "node tests/pdf-browser.mjs",
     "test:automatic": "node tests/automatic-pdf-browser.mjs",
     "test:annotations": "node tests/pdf-annotations-browser.mjs",
+    "test:sidebar": "node tests/pdf-sidebar-browser.mjs",
     "package": "powershell -NoProfile -File tools/package.ps1"
   }
 }

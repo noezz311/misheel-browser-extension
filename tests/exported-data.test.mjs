@@ -49,3 +49,17 @@ test("real APK dictionary supports Mongolian meanings, homonyms and idioms", asy
   assert.ok(idiom.entries.some(entry => entry.source === "idiom"));
   assert.ok((await lookup("학교에서 한국어를 공부합니다")).entries.some(entry => entry.word === "공부하다"));
 });
+
+test("real APK headwords survive website formatting and common inflections", async () => {
+  const lookup = createDictionaryLookup(async key => shards.get(key));
+  for (const query of ["학\u00ad교", "학\u200e교", "학\u2060교", "ᄒ\u200bᅡᆨ교"]) {
+    const result = await lookup(query);
+    assert.equal(result.mode, "exact", query);
+    assert.equal(result.entries[0]?.word, "학교", query);
+    assert.equal(result.entries[0]?.meaning, "сургууль", query);
+  }
+  for (const [query, lemma] of [["학교입니다", "학교"], ["먹었습니다", "먹다"], ["읽었습니다", "읽다"],
+    ["갔어요", "가다"], ["봤어요", "보다"], ["갑니다", "가다"], ["됩니다", "되다"]]) {
+    assert.ok((await lookup(query)).entries.some(entry => entry.word === lemma), `${query} → ${lemma}`);
+  }
+});

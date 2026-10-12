@@ -66,6 +66,7 @@
     <button id="save-pdf" class="primary" type="button" title="Тэмдэглэгээтэй PDF татах (Ctrl+S)">PDF хадгалах ↓</button>
   </section>
 
+  <div class="reading-workspace">
   <main class="reader-frame" aria-label="PDF хуудас">
     <div id="reader" class="reader">
     <section id="empty-state" class="empty-state">
@@ -89,6 +90,15 @@
     <div id="busy" class="busy" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-label">PDF нээж байна…</span></div>
     </div>
   </main>
+  <aside id="translation-panel" class="translation-panel" aria-label="Солонгос монгол толь">
+    <div class="translation-placeholder">
+      <span class="panel-mark" aria-hidden="true">한 → М</span>
+      <h2>Сонгоод утгыг нь хараарай</h2>
+      <p>PDF доторх солонгос үгээ сонгоход монгол утга нь энд гарна.</p>
+      <small>Тэмдэглэгээ хийж байгаа бол «Унших» хэрэгслийг сонгоно.</small>
+    </div>
+  </aside>
+  </div>
 
   <footer class="reader-footer"><span id="reader-status" role="status">Текст сонгох боломжтой PDF дээр ажиллана</span><span class="keyboard-hint">← → хуудас солих</span><a href="help.html" target="_blank" rel="noopener">Заавар</a></footer>
   <div id="drop-overlay" class="drop-overlay" hidden><div><span aria-hidden="true">↓</span><strong>PDF файлаа энд тавиарай</strong><p>Мишээл уншигчаар нээнэ</p></div></div>
