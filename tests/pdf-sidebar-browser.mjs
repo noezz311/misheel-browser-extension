@@ -75,9 +75,30 @@ try {
   async function geometry() {
     return page.evaluate(() => {
       const rect = selector => { const { x, y, width, height } = document.querySelector(selector).getBoundingClientRect(); return { x, y, width, height }; };
-      return { reader: rect("#reader"), panel: rect("#translation-panel"), card: document.querySelector("[data-misheel-popup]") && rect("[data-misheel-popup]"), viewport: { width: innerWidth, height: innerHeight }, documentWidth: document.documentElement.scrollWidth };
+      return { reader: rect("#reader"), sidebar: rect(".reader-sidebar"), header: rect(".reader-header"), toolbar: rect("#toolbar"), annotations: rect("#annotation-toolbar"), panel: rect("#translation-panel"), card: document.querySelector("[data-misheel-popup]") && rect("[data-misheel-popup]"), viewport: { width: innerWidth, height: innerHeight }, documentWidth: document.documentElement.scrollWidth };
     });
   }
+
+  await test("Desktop keeps the header, page, zoom and annotation controls together on the right", async () => {
+    const bounds = measurements.controls = await geometry();
+    assert.equal(bounds.reader.y, 0, JSON.stringify(bounds));
+    assert.ok(bounds.reader.height >= bounds.viewport.height - 40, JSON.stringify(bounds));
+    assert.ok(bounds.sidebar.x >= bounds.reader.x + bounds.reader.width - 1, JSON.stringify(bounds));
+    assert.equal(bounds.sidebar.x + bounds.sidebar.width, bounds.viewport.width);
+    for (const name of ["header", "toolbar", "annotations", "panel"]) {
+      assert.ok(bounds[name].x >= bounds.sidebar.x, JSON.stringify({ name, bounds }));
+      assert.ok(bounds[name].x + bounds[name].width <= bounds.viewport.width + 1, JSON.stringify({ name, bounds }));
+    }
+    assert.ok(bounds.toolbar.y >= bounds.header.y + bounds.header.height - 1, JSON.stringify(bounds));
+    assert.ok(bounds.annotations.y >= bounds.toolbar.y + bounds.toolbar.height - 1, JSON.stringify(bounds));
+    assert.ok(bounds.panel.y >= bounds.annotations.y + bounds.annotations.height - 1, JSON.stringify(bounds));
+    for (const id of ["open-file", "page-number", "previous-page", "next-page", "zoom-out", "zoom-reset", "zoom-in", "fit-width", "tool-read", "tool-highlight", "tool-ink", "tool-text", "annotation-undo", "annotation-redo", "annotation-delete", "save-pdf"]) {
+      const button = page.locator(`#${id}`), box = await button.boundingBox();
+      assert.equal(await button.isVisible(), true, `${id} must be visible`);
+      assert.ok(box.x >= bounds.sidebar.x && box.x + box.width <= bounds.viewport.width + 1, `${id} must be inside the right sidebar`);
+      assert.ok(box.y >= 0 && box.y + box.height <= bounds.viewport.height, `${id} must remain in the viewport`);
+    }
+  });
 
   await test("Actual PDF mouse selection docks 학교 and its Mongolian meaning beside the reader", async () => {
     await select(school(), true); assert.equal(await page.evaluate(() => window.getSelection().toString()), "학교");
@@ -129,13 +150,18 @@ try {
       await page.waitForTimeout(220); await school().waitFor({ state: "visible" });
       await select(school(), true); assert.match(await card.locator(".meaning").first().textContent(), /сургуул/u);
       const bounds = measurements[`narrow${width}`] = await geometry();
-      assert.ok(bounds.reader.height > 200, JSON.stringify(bounds)); assert.equal(bounds.reader.width, width);
-      assert.ok(bounds.panel.y >= bounds.reader.y + bounds.reader.height - 1, JSON.stringify(bounds));
-      assert.equal(bounds.panel.width, width); assert.ok(bounds.panel.height > 200); assert.ok(bounds.documentWidth <= width);
+      assert.ok(bounds.reader.height > 300, JSON.stringify(bounds)); assert.equal(bounds.reader.width, width);
+      assert.ok(bounds.sidebar.y >= bounds.reader.y + bounds.reader.height - 1, JSON.stringify(bounds));
+      assert.equal(bounds.sidebar.width, width); assert.ok(bounds.sidebar.height > 200); assert.ok(bounds.documentWidth <= width);
+      const readerBefore = await page.locator("#reader").evaluate(node => node.scrollTop);
+      await card.scrollIntoViewIfNeeded();
+      assert.equal(await page.locator("#reader").evaluate(node => node.scrollTop), readerBefore, "Reaching narrow-screen definitions must leave the PDF at its current position");
+      assert.ok(await page.locator(".reader-sidebar").evaluate(node => node.scrollHeight > node.clientHeight && node.scrollTop > 0), "The controls and definitions must scroll inside the lower sidebar");
       await page.screenshot({ path: path.join(artifacts, `pdf-sidebar-${width}.png`) });
       const sentence = page.locator('.page[data-page-number="1"] .textLayer span').filter({ hasText: /^저는 학교에 갑니다\.$/u }).first();
       await select(sentence);
       const body = card.locator(".body");
+      await body.scrollIntoViewIfNeeded();
       const sizes = await body.evaluate(node => ({ height: node.clientHeight, total: node.scrollHeight }));
       assert.ok(sizes.total > sizes.height, JSON.stringify(sizes));
       const box = await body.boundingBox(); await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(0, 300);
@@ -145,17 +171,21 @@ try {
     });
   }
 
-  await test("Desktop screenshot shows the selected word, translation panel and continuous page boundary", async () => {
-    await page.setViewportSize({ width: 1100, height: 900 }); await page.locator("#fit-width").click();
-    await page.locator("#zoom-reset").click();
-    for (let i = 0; i < 4; i++) await page.locator("#zoom-out").click();
-    await page.locator("#reader").evaluate(node => { node.scrollTop = 0; }); await page.waitForTimeout(240);
-    await select(school(), true);
-    const boundary = await page.locator('.page[data-page-number="1"]').boundingBox();
-    const reader = await page.locator("#reader").boundingBox();
-    assert.ok(boundary.y + boundary.height < reader.y + reader.height - 20, JSON.stringify({ boundary, reader }));
-    await page.screenshot({ path: path.join(artifacts, "pdf-sidebar.png") });
-  });
+  for (const theme of [{ name: "dark", width: 1440, height: 1000 }, { name: "light", width: 1100, height: 900 }]) {
+    await test(`${theme.name} desktop screenshot shows right-side controls, translation and continuous PDF pages`, async () => {
+      await page.emulateMedia({ colorScheme: theme.name });
+      await page.setViewportSize({ width: theme.width, height: theme.height });
+      await page.locator(".reader-sidebar").evaluate(node => { node.scrollTop = 0; });
+      await page.locator("#zoom-reset").click();
+      for (let i = 0; i < 2; i++) await page.locator("#zoom-out").click();
+      await page.locator("#reader").evaluate(node => { node.scrollTop = 0; }); await page.waitForTimeout(240);
+      await select(school(), true);
+      const boundary = await page.locator('.page[data-page-number="1"]').boundingBox();
+      const reader = await page.locator("#reader").boundingBox();
+      assert.ok(boundary.y + boundary.height < reader.y + reader.height - 20, JSON.stringify({ boundary, reader }));
+      await page.screenshot({ path: path.join(artifacts, `pdf-right-controls-${theme.name}.png`) });
+    });
+  }
 
   await test("Ordinary website definitions retain their floating card", async () => {
     const web = await context.newPage(); await web.goto(`${origin}/selection.html`);

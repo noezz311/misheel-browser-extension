@@ -11,7 +11,33 @@
   <script src="pdf.mjs" type="module"></script>
 </head>
 <body>
-  <header class="reader-header">
+  <div class="reading-workspace">
+  <main class="reader-frame" aria-label="PDF хуудас">
+    <div id="reader" class="reader">
+    <section id="empty-state" class="empty-state">
+      <div class="paper-illustration" aria-hidden="true">
+        <div class="paper-top"><span>PDF</span><i></i></div>
+        <div class="paper-lines"><i></i><i></i><i></i></div>
+        <div class="selected-word" lang="ko">학교</div>
+        <div class="translation-bubble"><small>МОНГОЛ УТГА</small><strong>сургууль</strong></div>
+        <div class="paper-lines short"><i></i><i></i></div>
+      </div>
+      <span class="eyebrow">УНШИХДАА ОРЧУУЛ</span>
+      <h1>Солонгос PDF-ээ<br>Мишээлтэй уншаарай</h1>
+      <p>Үг, хэллэгээ хулганаар сонгоход<br>монгол утга нь хажууд нь гарч ирнэ.</p>
+      <button id="choose-file" class="primary large" type="button">PDF файл сонгох <span aria-hidden="true">↗</span></button>
+      <p class="drop-hint">Эсвэл PDF файлаа энд чирж оруулаарай · 200 МБ хүртэл</p>
+      <div class="privacy-note"><span aria-hidden="true">✓</span> Файл таны төхөөрөмж дээр нээгдэнэ. Серверт илгээхгүй.</div>
+    </section>
+    <div id="page-stage" class="page-stage" hidden>
+      <div id="page-shell" class="page-shell pdfViewer"></div>
+    </div>
+    <div id="busy" class="busy" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-label">PDF нээж байна…</span></div>
+    </div>
+  </main>
+  <aside class="reader-sidebar" aria-label="PDF хэрэгсэл болон толь">
+    <div class="sidebar-controls">
+<header class="reader-header">
     <a class="brand" href="help.html" target="_blank" rel="noopener" aria-label="Мишээл толийн заавар">
       <span class="brand-mark" aria-hidden="true">한</span>
       <span><strong>Мишээл</strong><small>PDF уншигч · Солонгос → Монгол</small></span>
@@ -39,7 +65,7 @@
       <button id="zoom-in" class="icon-button zoom-button" type="button" aria-label="Томруулах" title="Томруулах">+</button>
       <button id="fit-width" class="secondary fit-button" type="button" aria-pressed="true">Өргөнд тааруулах</button>
     </div>
-    <p class="selection-hint">Солонгос текстээ сонгоод утгыг нь хажууд нь хараарай</p>
+    <p class="selection-hint">Солонгос текстээ сонгоод утгыг нь доорх толиос хараарай</p>
   </section>
 
   <div id="message" class="message" role="alert" hidden></div>
@@ -65,38 +91,15 @@
     <span id="save-status" class="save-status" role="status"></span>
     <button id="save-pdf" class="primary" type="button" title="Тэмдэглэгээтэй PDF татах (Ctrl+S)">PDF хадгалах ↓</button>
   </section>
-
-  <div class="reading-workspace">
-  <main class="reader-frame" aria-label="PDF хуудас">
-    <div id="reader" class="reader">
-    <section id="empty-state" class="empty-state">
-      <div class="paper-illustration" aria-hidden="true">
-        <div class="paper-top"><span>PDF</span><i></i></div>
-        <div class="paper-lines"><i></i><i></i><i></i></div>
-        <div class="selected-word" lang="ko">학교</div>
-        <div class="translation-bubble"><small>МОНГОЛ УТГА</small><strong>сургууль</strong></div>
-        <div class="paper-lines short"><i></i><i></i></div>
-      </div>
-      <span class="eyebrow">УНШИХДАА ОРЧУУЛ</span>
-      <h1>Солонгос PDF-ээ<br>Мишээлтэй уншаарай</h1>
-      <p>Үг, хэллэгээ хулганаар сонгоход<br>монгол утга нь хажууд нь гарч ирнэ.</p>
-      <button id="choose-file" class="primary large" type="button">PDF файл сонгох <span aria-hidden="true">↗</span></button>
-      <p class="drop-hint">Эсвэл PDF файлаа энд чирж оруулаарай · 200 МБ хүртэл</p>
-      <div class="privacy-note"><span aria-hidden="true">✓</span> Файл таны төхөөрөмж дээр нээгдэнэ. Серверт илгээхгүй.</div>
-    </section>
-    <div id="page-stage" class="page-stage" hidden>
-      <div id="page-shell" class="page-shell pdfViewer"></div>
     </div>
-    <div id="busy" class="busy" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-label">PDF нээж байна…</span></div>
-    </div>
-  </main>
-  <aside id="translation-panel" class="translation-panel" aria-label="Солонгос монгол толь">
+  <section id="translation-panel" class="translation-panel" aria-label="Солонгос монгол толь">
     <div class="translation-placeholder">
       <span class="panel-mark" aria-hidden="true">한 → М</span>
       <h2>Сонгоод утгыг нь хараарай</h2>
       <p>PDF доторх солонгос үгээ сонгоход монгол утга нь энд гарна.</p>
       <small>Тэмдэглэгээ хийж байгаа бол «Унших» хэрэгслийг сонгоно.</small>
     </div>
+  </section>
   </aside>
   </div>
 

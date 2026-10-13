@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Мишээл — Солонгос толь",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Солонгос текст сонгоход монгол утга гарна. PDF автоматаар нээж, тодруулах, үзгээр зурах, текст нэмэх, хадгалах боломжтой.",
   "minimum_chrome_version": "125",
   "permissions": ["storage", "activeTab", "webRequest"],
