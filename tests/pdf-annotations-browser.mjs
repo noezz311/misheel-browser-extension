@@ -13,6 +13,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const artifacts = path.join(root, "artifacts");
 const fixture = path.join(root, "tests", "fixtures", "korean-selectable.pdf");
 const reports = [], errors = [], network = [];
+const shortcutFocus = {};
 let context, page, extensionId, browserVersion;
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function test(name, fn) {
@@ -29,6 +30,16 @@ async function tool(name) {
   await page.locator(`#tool-${name}`).click();
   await page.waitForFunction(id => document.getElementById(id).getAttribute("aria-pressed") === "true", `tool-${name}`);
   await page.locator("#busy").waitFor({ state: "hidden" });
+}
+async function waitMode(name) {
+  await page.waitForFunction(id => document.getElementById(id).getAttribute("aria-pressed") === "true", `tool-${name}`);
+}
+async function recordFocus(name) {
+  shortcutFocus[name] = await page.evaluate(() => {
+    const node = document.activeElement;
+    return { tag: node?.tagName, id: node?.id, className: node?.className,
+      contentEditable: node?.isContentEditable, selection: window.getSelection()?.toString() };
+  });
 }
 async function save(name) {
   const download = page.waitForEvent("download");
@@ -115,6 +126,34 @@ try {
   await page.locator("#file-input").setInputFiles(fixture);
   await waitPage();
 
+  await test("Alt+T switches Text and Read, clears definitions, and a held key switches only once", async () => {
+    const word = page.locator(".textLayer span").filter({ hasText: /^학교$/u }).first();
+    const box = await word.boundingBox();
+    await page.mouse.move(box.x + 1, box.y + box.height / 2); await page.mouse.down();
+    await page.mouse.move(box.x + box.width - 1, box.y + box.height / 2, { steps: 10 }); await page.mouse.up();
+    const card = page.locator("[data-misheel-popup]");
+    await card.locator(".meaning").first().waitFor({ state: "visible" });
+    assert.equal(await page.evaluate(() => window.getSelection().toString()), "학교");
+    assert.match(await card.locator(".meaning").first().textContent(), /сургуул/u);
+    await recordFocus("selectedWord");
+    await page.keyboard.down("Alt");
+    try {
+      await page.keyboard.down("t"); await waitMode("text");
+      await card.waitFor({ state: "detached" });
+      assert.equal(await page.locator(".translation-placeholder").isVisible(), true);
+      await recordFocus("enteredText");
+      await page.keyboard.down("t");
+      await pause(100);
+      assert.equal(await page.locator("#tool-text").getAttribute("aria-pressed"), "true", "Holding the shortcut must not toggle back to Read");
+      assert.equal(await page.locator(".freeTextEditor").count(), 0, "The shortcut must not create a stray text note");
+    } finally { await page.keyboard.up("t"); await page.keyboard.up("Alt"); }
+    await page.keyboard.press("Alt+t"); await waitMode("read"); await recordFocus("returnedRead");
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.misheelAnnotating), undefined);
+    for (const name of ["highlight", "ink"]) {
+      await tool(name); await page.keyboard.press("Alt+t"); await waitMode("text");
+      await page.keyboard.press("Alt+t"); await waitMode("read");
+    }
+  });
   await test("Text highlight uses actual drag selection and suppresses the dictionary in annotation mode", async () => {
     await tool("highlight");
     assert.equal(await page.evaluate(() => document.documentElement.dataset.misheelAnnotating), "true");
@@ -145,9 +184,23 @@ try {
     const b = await page.locator('.page[data-page-number="1"] .annotationEditorLayer').boundingBox();
     await page.mouse.click(b.x + 100, b.y + 550);
     const input = page.locator(".freeTextEditor [contenteditable='true']").last();
-    await input.waitFor(); await input.fill("Note: Тэмдэглэл ӨөҮү 학교");
-    await tool("read");
+    await input.waitFor(); await input.fill("No");
+    await page.keyboard.press("t"); await page.keyboard.insertText("e: Тэмдэглэл ӨөҮү 학교");
+    assert.equal(await input.textContent(), "Note: Тэмдэглэл ӨөҮү 학교", "An ordinary t key must still type into a note");
+    assert.equal(await input.evaluate(node => document.activeElement === node), true);
+    await recordFocus("editingUnicodeNote");
+    await page.keyboard.press("Alt+t"); await waitMode("read");
+    await recordFocus("committedUnicodeNote");
+    assert.equal(await page.locator(".freeTextEditor").last().textContent(), "Note: Тэмдэглэл ӨөҮү 학교", "Switching out of the active note must preserve all text without an extra t");
     assert.equal(await page.evaluate(() => document.documentElement.dataset.misheelAnnotating), undefined);
+    const word = page.locator(".textLayer span").filter({ hasText: /^학교$/u }).first();
+    const wordBox = await word.boundingBox();
+    await page.mouse.move(wordBox.x + 1, wordBox.y + wordBox.height / 2); await page.mouse.down();
+    await page.mouse.move(wordBox.x + wordBox.width - 1, wordBox.y + wordBox.height / 2, { steps: 10 }); await page.mouse.up();
+    const meaning = page.locator("[data-misheel-popup]").locator(".meaning").first();
+    await meaning.waitFor({ state: "visible" });
+    assert.equal(await page.evaluate(() => window.getSelection().toString()), "학교");
+    assert.match(await meaning.textContent(), /сургуул/u, "Read mode must translate actual PDF selection after committing a note with Alt+T");
     assert.match(await page.locator("#save-status").textContent(), /Хадгалаагүй/u);
     await page.screenshot({ path: path.join(artifacts, "pdf-annotations-editor.png") });
   });
@@ -179,7 +232,9 @@ try {
     const text = page.locator(".freeTextEditor").first();
     await text.waitFor(); await text.dblclick();
     const input = text.locator("[contenteditable='true']");
-    await input.waitFor(); await input.fill("Edited note Тэмдэглэл ӨөҮү 학교");
+    await input.waitFor();
+    assert.equal((await input.textContent()).replace(/\u00a0/gu, " "), "Note: Тэмдэглэл ӨөҮү 학교", "The note committed by Alt+T must reopen with its complete Unicode text");
+    await input.fill("Edited note Тэмдэглэл ӨөҮү 학교");
     await tool("read");
     const edited = await save("pdf-annotations-edited.pdf");
     const changed = await readAnnotations(edited);
@@ -222,6 +277,8 @@ try {
       const download = page.waitForEvent("download");
       await page.locator("#save-pdf").click();
       await page.waitForFunction(() => document.getElementById("reader").inert && typeof globalThis.__releaseSave === "function");
+      await page.keyboard.press("Alt+t");
+      assert.equal(await page.locator("#tool-text").getAttribute("aria-pressed"), "true", "A shortcut during save must leave the editor mode unchanged");
       await page.keyboard.press("Control+z"); await page.keyboard.press("Delete"); await page.keyboard.type("MUTATION");
       assert.equal(await page.locator(".freeTextEditor").first().textContent(), originalText);
       assert.equal(await page.locator("#save-pdf").isDisabled(), true);
@@ -314,7 +371,7 @@ try {
   if (page) await page.screenshot({ path: path.join(artifacts, "pdf-annotations-final.png") }).catch(() => {});
   if (context) await context.close();
   await mkdir(artifacts, { recursive: true });
-  await writeFile(path.join(artifacts, "pdf-annotations-browser-tests.json"), JSON.stringify({ date: new Date().toISOString(), browserVersion, reports, errors, network }, null, 2));
+  await writeFile(path.join(artifacts, "pdf-annotations-browser-tests.json"), JSON.stringify({ date: new Date().toISOString(), browserVersion, reports, shortcutFocus, errors, network }, null, 2));
 }
 const failed = reports.filter(report => !report.passed);
 console.log(`${reports.length - failed.length}/${reports.length} annotation browser checks passed.`);

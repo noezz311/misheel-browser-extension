@@ -73,11 +73,12 @@
 
   <section id="annotation-toolbar" class="annotation-toolbar" aria-label="PDF тэмдэглэгээ" hidden>
     <div class="annotation-tools" role="group" aria-label="Хэрэгсэл">
-      <button id="tool-read" class="tool-button" type="button" aria-pressed="true" title="Текст сонгож орчуулах">↖ <span>Унших</span></button>
+      <button id="tool-read" class="tool-button" type="button" aria-pressed="true" aria-keyshortcuts="Alt+t" title="Текст сонгож орчуулах (Alt+T — горим солих)">↖ <span>Унших</span></button>
       <button id="tool-highlight" class="tool-button" type="button" aria-pressed="false" title="Текст сонгож тодруулах">▰ <span>Тодруулах</span></button>
       <button id="tool-ink" class="tool-button" type="button" aria-pressed="false" title="Хулгана эсвэл үзгээр зурах">✎ <span>Зурах</span></button>
-      <button id="tool-text" class="tool-button" type="button" aria-pressed="false" title="Хуудас дээр дарж текст нэмэх">T <span>Текст нэмэх</span></button>
+      <button id="tool-text" class="tool-button" type="button" aria-pressed="false" aria-keyshortcuts="Alt+t" title="Хуудас дээр дарж текст нэмэх (Alt+T — горим солих)">T <span>Текст нэмэх</span></button>
     </div>
+    <p class="mode-shortcut">Alt + T · Текст нэмэх ↔ Унших</p>
     <div id="annotation-options" class="annotation-options" hidden>
       <label class="color-label" for="annotation-color">Өнгө <input id="annotation-color" type="color" value="#fff066" aria-label="Тэмдэглэгээний өнгө"></label>
       <label id="pen-size-label" for="pen-size" hidden>Үзэг <select id="pen-size" aria-label="Үзгийн өргөн"><option value="1">1</option><option value="2" selected>2</option><option value="4">4</option><option value="8">8</option><option value="12">12</option></select></label>

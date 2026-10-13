@@ -577,6 +577,19 @@ function cancelPassword() {
 ui["cancel-password"].addEventListener("click", cancelPassword);
 ui["password-dialog"].addEventListener("cancel", (event) => { event.preventDefault(); cancelPassword(); });
 
+// Toggle while a text note has focus, without inserting a letter or losing it.
+window.addEventListener("keydown", (event) => {
+  if (event.defaultPrevented || event.repeat || event.isComposing || ui["password-dialog"].open) return;
+  if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.getModifierState("AltGraph")) return;
+  if (event.code !== "KeyT" && event.key.toLowerCase() !== "t") return;
+  if (!state.document || !state.editor || state.saving || ui["tool-text"].disabled || ui["tool-read"].disabled) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  commitAnnotations();
+  window.getSelection()?.removeAllRanges();
+  setMode(state.mode === AnnotationEditorType.FREETEXT ? AnnotationEditorType.NONE : AnnotationEditorType.FREETEXT);
+}, { capture: true });
+
 window.addEventListener("keydown", (event) => {
   if (event.defaultPrevented || ui["password-dialog"].open) return;
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s" && state.document) {
